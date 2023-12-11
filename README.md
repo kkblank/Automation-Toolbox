@@ -1,2 +1,6 @@
 # Automation-Toolbox
-Automation Toolbox
+这是一个免费的自动化工具箱小项目
+具体使用方式可参考操作手册
+有好的意见可以提issue
+感谢大家支持
+想看视频使用教程可以关注B站-少侠空白
