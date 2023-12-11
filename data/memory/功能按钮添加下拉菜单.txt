@@ -1,0 +1,20 @@
+'''水印位置选择按钮'''
+        self.tool_bt = self.ui.toolButton
+        self.menu = QMenu()  # 创建菜单
+        # 创建动作
+        self.action1 = QAction('左上角', self.menu)
+        self.action1.setData('左上角')
+        self.action2 = QAction('左下角', self.menu)
+        self.action2.setData('左下角')
+        self.action3 = QAction('右上角', self.menu)
+        self.action3.setData('右上角')
+        self.action4 = QAction('右下角', self.menu)
+        self.action4.setData('右下角')
+        self.action5 = QAction('中间', self.menu)
+        self.action5.setData('中间')
+        # 将动作添加到菜单中
+        self.menu.addActions([self.action5, self.action1, self.action2, self.action3, self.action4])
+        # 将菜单添加到按钮中
+        self.tool_bt.setMenu(self.menu)
+        # 给捐赠按钮绑定槽函数
+        # self.tool_bt.triggered.connect(self.select_action)

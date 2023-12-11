@@ -1,0 +1,9 @@
+# 选择捐赠通道动作
+    def select_action(self, btn):
+        if btn.data() == '支付宝':
+            self.img_are.setPixmap(QPixmap('zfb.jpg'))
+        elif btn.data() == '微信':
+            self.img_are.setPixmap(QPixmap('wx.jpg'))
+        else:
+            self.img_are.setWordWrap(True) # 打开自动换行
+            self.img_are.setText('觉得好用的话，请开发者喝杯奶茶吧')
