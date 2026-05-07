@@ -1,0 +1,12 @@
+import tkinter as tk
+from tkinter import filedialog
+
+# 最好在主线程中进行选择，子线程容易出现卡线程情况
+root = tk.Tk()
+root.withdraw()
+# 选择文件
+suanfa_value = filedialog.askopenfilename()
+print(suanfa_value)
+# 选择文件夹
+Folderpath = filedialog.askdirectory()
+print('共享的文件夹%s' % Folderpath)
