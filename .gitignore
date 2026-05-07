@@ -1,0 +1,63 @@
+# --- Python ---
+# 编译后的 Python 文件
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# 分发的包
+*.egg
+*.egg-info/
+dist/
+build/
+*.manifest
+*.spec
+
+# 安装器日志
+pip-log.txt
+pip-delete-this-directory.txt
+
+# 单元测试/覆盖率报告
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# 翻译文件
+*.mo
+
+# 虚拟环境
+venv/
+ENV/
+env/
+.venv/
+.ENV/
+# 如果你使用 pipenv 或 poetry
+Pipfile.lock
+poetry.lock
+
+# IDE & 编辑器
+# VS Code
+.vscode/
+# PyCharm
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# --- 你的项目特定文件 ---
+
+# 忽略字体文件 (除非你确定要上传这个特定字体)
+# *.ttf
+
+# 忽略文档/说明文件 (如果不希望上传 txt)
+打包.txt
+
+# 如果 data 文件夹里是很大的数据集或用户上传的文件，建议忽略
+data/
+
+# 如果 main.py 是本地运行脚本，而 main1-6 是自动生成的备份，可以考虑忽略
+# main[1-6].py
