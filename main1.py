@@ -316,8 +316,8 @@ class MyThread(QThread):
         else:
             wait_time = int(wait_time)
         t = 0
-        while True:
-            if stop_flag == 1:
+        while stop_flag:
+            try:
                 location = pg.locateCenterOnScreen(img, confidence=confidence/100)
                 if location is not None:
                     pg.moveTo(location.x, location.y, duration=0.2)
@@ -328,6 +328,11 @@ class MyThread(QThread):
                 #     name = img.split('/')
                 #     self.message = '...正在检测"{}"...'.format(name[-1])
                 #     self.textsignal.emit(self.message)
+                
+            except Exception as e:
+                pass
+
+            finally:
                 time.sleep(picture_check_speed)
                 t = t + picture_check_speed
                 if wait_time != 0:
@@ -335,8 +340,6 @@ class MyThread(QThread):
                         self.message = '.指令等待时间结束,未检测到该图片.'
                         self.textsignal.emit(self.message)
                         break
-            else:
-                break
 
     # 2.定义鼠标点击坐标位置
     def mouse_position(self, position, button_type, clicks_time, wait_time):
