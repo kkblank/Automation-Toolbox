@@ -39,6 +39,19 @@
     <string>图像处理</string>
    </property>
   </widget>
+  <widget class="QPushButton" name="pushButton_7">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>250</y>
+     <width>93</width>
+     <height>51</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>检查更新</string>
+   </property>
+  </widget>
   <widget class="QPushButton" name="pushButton_3">
    <property name="geometry">
     <rect>

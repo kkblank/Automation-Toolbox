@@ -6,10 +6,11 @@ import sys, os
 import time
 import pyperclip
 import xlrd
-from PyQt5.QtCore import QThread, pyqtSignal
-from PyQt5.QtWidgets import *
-from PyQt5 import uic,QtCore
+from PySide6.QtCore import QThread, Signal, Qt
+from PySide6.QtWidgets import *
+from generated.ui_auto import Ui_AutoWindow
 import pyautogui as pg
+from pyautogui import ImageNotFoundException as PgImageNotFoundException
 import main
 
 '''定义全局变量，用于部分情况下的灵活传参'''
@@ -28,7 +29,7 @@ class MyWindow1(QMainWindow):
     def __init__(self):
         super().__init__()
         self.sys_ui()
-        self.ui.setWindowFlags(QtCore.Qt.WindowCloseButtonHint)
+        self.setWindowFlags(Qt.WindowCloseButtonHint)
 
     # 定义一个打印函数
     def my_print(self, str_text):
@@ -111,8 +112,9 @@ class MyWindow1(QMainWindow):
     '''UI显示界面'''
     def sys_ui(self):
         # 加载UI界面
-        self.ui = uic.loadUi('./mini_sys.ui')
-        self.ui.setWindowTitle('自动化工具箱v{}'.format(main.NAME))
+        self.ui = Ui_AutoWindow()
+        self.ui.setupUi(self)
+        self.setWindowTitle('自动化工具箱v{}'.format(main.NAME))
         # 初始化子线程的返回函数
         global version_value
         version_value = 0
@@ -120,7 +122,7 @@ class MyWindow1(QMainWindow):
         # 标题栏按钮
         self.mainWindow_bt = self.ui.pushButton_3  # 返回目录按钮
         self.mainWindow_bt.clicked.connect(self.tow)  # 打开目录界面
-        self.mainWindow_bt.clicked.connect(self.ui.close)  # 关闭原来窗口
+        self.mainWindow_bt.clicked.connect(self.close)  # 关闭原来窗口
 
         # 图片检测时间选择按钮
         self.select_bt = self.ui.radioButton  # 快
@@ -172,7 +174,7 @@ class MyWindow1(QMainWindow):
     # 切换目录
     def tow(self):
         self.w1 = main.MyWindow()
-        self.w1.ui.show()
+        self.w1.show()
 
 
 # 用于自动化操作的子线程
@@ -180,8 +182,8 @@ class MyThread(QThread):
     # 设置鼠标按键类型参数
     mouse_type = ['空', 'left', 'middle', 'right']
     # 设定传递文本信息的变量
-    textsignal = pyqtSignal(str)  # 文本显示区域信息
-    textsignal2 = pyqtSignal(str)  # 当前运行状态信息
+    textsignal = Signal(str)  # 文本显示区域信息
+    textsignal2 = Signal(str)  # 当前运行状态信息
 
     def __init__(self):
         super().__init__()
@@ -323,8 +325,17 @@ class MyThread(QThread):
                     pg.click(clicks=clicks_time, interval=0.1, button=button_type)
                     time.sleep(0.5)
                     break
-                
-            except Exception as e:
+
+            except PgImageNotFoundException:
+                pass
+
+            except OSError:
+                name = img.split('/')[-1]
+                self.message = f'.图片文件"{name}"不存在或无法读取,请检查.'
+                self.textsignal.emit(self.message)
+                break
+
+            except Exception:
                 pass
 
             finally:
@@ -458,7 +469,7 @@ class MyThread2(QThread):
 
 # 打开图片文件夹的子线程
 class MyThread3(QThread):
-    textsignal = pyqtSignal(str)
+    textsignal = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -477,7 +488,7 @@ class MyThread3(QThread):
 
 # 鼠标坐标定位的子线程
 class MyThread5(QThread):
-    textsignal = pyqtSignal(str)
+    textsignal = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -496,7 +507,7 @@ class MyThread5(QThread):
 
 # 单步调试的子线程
 class MyThread6(MyThread):
-    # textsignal2 = pyqtSignal(str)
+    # textsignal2 = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -574,7 +585,7 @@ class MyThread6(MyThread):
 
 # 读取表格名称的子线程
 class MyThread7(QThread):
-    textsignal = pyqtSignal(str)
+    textsignal = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -594,5 +605,5 @@ class MyThread7(QThread):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     w = MyWindow1()
-    w.ui.show()
-    sys.exit(app.exec_())
+    w.show()
+    sys.exit(app.exec())

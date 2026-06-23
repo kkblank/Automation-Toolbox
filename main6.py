@@ -1,9 +1,9 @@
 import sys
 import tkinter as tk
 from tkinter import filedialog
-from PyQt5.QtCore import QThread, pyqtSignal
-from PyQt5.QtWidgets import *
-from PyQt5 import uic,QtCore
+from PySide6.QtCore import QThread, Signal, Qt
+from PySide6.QtWidgets import *
+from generated.ui_ocr import Ui_OcrWindow
 from paddleocr import PaddleOCR
 
 # import main
@@ -21,7 +21,7 @@ class MyWindow6(QMainWindow):
         # 依次调用自己写的主函数（顺序）
         self.sys_ui()
         # 只显示x按钮,不显示最大化/最小化
-        self.ui.setWindowFlags(QtCore.Qt.WindowCloseButtonHint)
+        self.setWindowFlags(Qt.WindowCloseButtonHint)
 
     # 定义一个打印函数(打印子线程中传回来的信息)
     def my_print(self, str_text):
@@ -76,8 +76,9 @@ class MyWindow6(QMainWindow):
 
     '''UI显示界面'''
     def sys_ui(self):
-        self.ui = uic.loadUi('./mini_sys6.ui')
-        self.ui.setWindowTitle('自动化工具箱v{}'.format(4.3))
+        self.ui = Ui_OcrWindow()
+        self.ui.setupUi(self)
+        self.setWindowTitle('自动化工具箱v{}'.format(4.3))
 
         # 标题栏按钮
         # self.mainWindow_bt = self.ui.pushButton  # 返回目录界面按钮
@@ -108,7 +109,7 @@ class MyWindow6(QMainWindow):
 
 # 选择图片文件夹的子线程
 class MyThread(QThread):
-    textsignal = pyqtSignal(str)
+    textsignal = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -133,7 +134,7 @@ class MyThread(QThread):
 
 # 选择图片的子线程
 class MyThread2(MyThread):
-    textsignal2 = pyqtSignal(str)
+    textsignal2 = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -164,5 +165,5 @@ class MyThread2(MyThread):
 if __name__ == "__main__":
     app = QApplication(sys.argv)  # 创建app
     w = MyWindow6()  # 实例化类
-    w.ui.show()  # 展示窗口
-    sys.exit(app.exec_())  # 保持窗口
+    w.show()  # 展示窗口
+    sys.exit(app.exec())  # 保持窗口

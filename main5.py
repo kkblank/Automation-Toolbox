@@ -7,9 +7,9 @@ import sys
 from PIL import Image, ImageFont, ImageDraw, ImageEnhance
 import tkinter as tk
 from tkinter import filedialog
-from PyQt5.QtCore import QThread, pyqtSignal
-from PyQt5.QtWidgets import *
-from PyQt5 import uic,QtCore
+from PySide6.QtCore import QThread, Signal, Qt
+from PySide6.QtWidgets import *
+from generated.ui_batch import Ui_BatchWindow
 import main
 
 # 全局变量,用于传递主界面信息
@@ -22,20 +22,21 @@ class MyWindow5(QMainWindow):
     def __init__(self):
         super().__init__()
         self.sys_ui()
-        self.ui.setWindowFlags(QtCore.Qt.WindowCloseButtonHint)
+        self.setWindowFlags(Qt.WindowCloseButtonHint)
 
     # 切换目录
     def tow(self):
         self.w1 = main.MyWindow()
-        self.w1.ui.show()
+        self.w1.show()
 
     def sys_ui(self):
-        self.ui = uic.loadUi('./mini_sys5.ui')
-        self.ui.setWindowTitle('自动化工具箱v{}'.format(main.NAME))
+        self.ui = Ui_BatchWindow()
+        self.ui.setupUi(self)
+        self.setWindowTitle('自动化工具箱v{}'.format(main.NAME))
         # 标题栏按钮
         self.mainWindow_bt = self.ui.pushButton
         self.mainWindow_bt.clicked.connect(self.tow)
-        self.mainWindow_bt.clicked.connect(self.ui.close)
+        self.mainWindow_bt.clicked.connect(self.close)
         # 图片文件夹2按钮
         self.picture_bt = self.ui.pushButton_5
         self.picture_bt.clicked.connect(self.picture_action)
@@ -99,7 +100,7 @@ class MyWindow5(QMainWindow):
 
     # 打开图片文件夹2
     def picture_action(self):
-        path = os.path.abspath('data') + '\picture2'
+        path = os.path.abspath('data') + '/picture2'
         os.startfile(path)
 
     # 选择重命名文件夹
@@ -158,7 +159,7 @@ class MyWindow5(QMainWindow):
 # 批量选择文件的子线程
 class MyThread(QThread):
     # 设定一个传递文本信息的变量
-    textsignal = pyqtSignal(str)
+    textsignal = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -199,7 +200,7 @@ class MyThread(QThread):
 # 批量选择图片的子线程
 class MyThread2(QThread):
     # 设定一个传递文本信息的变量
-    textsignal = pyqtSignal(str)
+    textsignal = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -317,5 +318,5 @@ class MyThread2(QThread):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     w = MyWindow5()
-    w.ui.show()
-    sys.exit(app.exec_())
+    w.show()
+    sys.exit(app.exec())

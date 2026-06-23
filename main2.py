@@ -7,9 +7,9 @@ import sys
 import cv2
 import tkinter as tk
 from tkinter import filedialog
-from PyQt5.QtCore import QThread, pyqtSignal
-from PyQt5.QtWidgets import *
-from PyQt5 import uic, QtCore
+from PySide6.QtCore import QThread, Signal, Qt
+from PySide6.QtWidgets import *
+from generated.ui_image import Ui_ImageWindow
 
 import main
 
@@ -21,7 +21,7 @@ class MyWindow2(QMainWindow):
     def __init__(self):
         super().__init__()
         self.sys_ui()
-        self.ui.setWindowFlags(QtCore.Qt.WindowCloseButtonHint)
+        self.setWindowFlags(Qt.WindowCloseButtonHint)
 
     # 定义一个打印函数
     def my_print(self, str_text):
@@ -80,13 +80,14 @@ class MyWindow2(QMainWindow):
         global suanfa_value
         suanfa_value = {"sf": "均衡", "path": "", "x": "1080", "y": "720", "ys": "彩色"}
 
-        self.ui = uic.loadUi("./mini_sys2.ui")
-        self.ui.setWindowTitle("自动化工具箱v{}".format(main.NAME))
+        self.ui = Ui_ImageWindow()
+        self.ui.setupUi(self)
+        self.setWindowTitle("自动化工具箱v{}".format(main.NAME))
 
         # 标题栏按钮
         self.mainWindow_bt = self.ui.pushButton_4  # 返回目录界面按钮
         self.mainWindow_bt.clicked.connect(self.tow)  # 打开目录界面
-        self.mainWindow_bt.clicked.connect(self.ui.close)  # 关闭原来窗口
+        self.mainWindow_bt.clicked.connect(self.close)  # 关闭原来窗口
 
         # 文本显示窗口(显示打印信息)/没有槽函数
         self.text_are = self.ui.textBrowser
@@ -131,7 +132,7 @@ class MyWindow2(QMainWindow):
     # 切换目录
     def tow(self):
         self.w1 = main.MyWindow()
-        self.w1.ui.show()
+        self.w1.show()
 
 
 # 打开图片文件夹2的子线程
@@ -147,7 +148,7 @@ class MyThread3(QThread):
 # 图像处理的子线程
 class MyThread5(QThread):
     global suanfa_value
-    textsignal = pyqtSignal(str)
+    textsignal = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -186,5 +187,5 @@ class MyThread5(QThread):
 if __name__ == "__main__":
     app = QApplication(sys.argv)  # 创建app
     w = MyWindow2()  # 实例化类
-    w.ui.show()  # 展示窗口
-    sys.exit(app.exec_())  # 保持窗口
+    w.show()  # 展示窗口
+    sys.exit(app.exec())  # 保持窗口

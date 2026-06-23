@@ -4,6 +4,7 @@
 *.pyo
 *.pyd
 __pycache__/
+.venv/
 
 # 分发的包
 *.egg
@@ -55,6 +56,7 @@ poetry.lock
 
 # 忽略文档/说明文件 (如果不希望上传 txt)
 打包.txt
+开发文档.md
 
 # 如果 data 文件夹里是很大的数据集或用户上传的文件，建议忽略
 data/

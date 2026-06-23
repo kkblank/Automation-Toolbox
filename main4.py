@@ -5,9 +5,9 @@
 import os
 import pyperclip
 import sys
-from PyQt5.QtCore import QThread, pyqtSignal
-from PyQt5.QtWidgets import *
-from PyQt5 import uic,QtCore
+from PySide6.QtCore import QThread, Signal, Qt
+from PySide6.QtWidgets import *
+from generated.ui_memory import Ui_MemoryWindow
 import main
 
 '''定义全局变量'''
@@ -19,7 +19,7 @@ class MyWindow4(QMainWindow):
     def __init__(self):
         super().__init__()
         self.sys_ui()
-        self.ui.setWindowFlags(QtCore.Qt.WindowCloseButtonHint)
+        self.setWindowFlags(Qt.WindowCloseButtonHint)
 
     # 定义一个打印函数
     def my_print(self, str_text):
@@ -52,16 +52,17 @@ class MyWindow4(QMainWindow):
     # 切换目录
     def tow(self):
         self.w1 = main.MyWindow()
-        self.w1.ui.show()
+        self.w1.show()
 
     def sys_ui(self):
-        self.ui = uic.loadUi('./mini_sys4.ui')
-        self.ui.setWindowTitle('自动化工具箱v{}'.format(main.NAME))
+        self.ui = Ui_MemoryWindow()
+        self.ui.setupUi(self)
+        self.setWindowTitle('自动化工具箱v{}'.format(main.NAME))
 
         # 标题栏按钮
         self.mainWindow_bt = self.ui.pushButton_3
         self.mainWindow_bt.clicked.connect(self.tow)
-        self.mainWindow_bt.clicked.connect(self.ui.close)
+        self.mainWindow_bt.clicked.connect(self.close)
 
         # 记忆文件夹按钮/槽函数
         self.memory_bt = self.ui.pushButton
@@ -85,7 +86,7 @@ class MyWindow4(QMainWindow):
 # 主要执行子线程
 class MyThread(QThread):
     # 设定一个传递文本信息的变量
-    textsignal = pyqtSignal(str)
+    textsignal = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -157,7 +158,7 @@ class MyThread2(QThread):
 # 刷新按钮子线程
 class MyThread3(QThread):
     # 设定一个传递文本信息的变量
-    textsignal = pyqtSignal(str)
+    textsignal = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -192,5 +193,5 @@ class MyThread3(QThread):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     w = MyWindow4()
-    w.ui.show()
-    sys.exit(app.exec_())
+    w.show()
+    sys.exit(app.exec())
