@@ -15,7 +15,7 @@ import main
 '''定义全局变量，用于部分情况下的灵活传参'''
 key_num = 0  # 传递循环次数
 version_value = 0  # 传递最新版本号
-stop_flag = 1  # 全局的停止标志/1开始,0结束
+# stop_flag 已废弃，改用 QThread.requestInterruption()
 step_flag = 0  # 单步调试指令行数
 picture_file_name = 0  # 记录当前读取的是哪个图片文件夹
 picture_check_speed = 1  # 图片检测的时间间隔
@@ -55,10 +55,8 @@ class MyWindow1(QMainWindow):
     # 点击开始按钮动作
     def start_action(self):
         global key_num
-        global stop_flag
         global confidence
 
-        stop_flag = 1
         confidence = self.confidence_are.value()
 
         key_num = self.input_are.text()
@@ -71,13 +69,13 @@ class MyWindow1(QMainWindow):
 
     # 点击结束按钮动作
     def stop_action(self):
-        global stop_flag
-        stop_flag = 0
+        if hasattr(self, 'my_thread') and self.my_thread.isRunning():
+            self.my_thread.requestInterruption()
+        if hasattr(self, 'my_thread5') and self.my_thread5.isRunning():
+            self.my_thread5.requestInterruption()
 
     # 点击鼠标定位按钮的动作
     def mouse_position_action(self):
-        global stop_flag
-        stop_flag = 1
         self.my_thread5 = MyThread5()
         # 开启子线程,并将循环次数key传过去
         self.my_thread5.start()
@@ -189,72 +187,74 @@ class MyThread(QThread):
         super().__init__()
 
     def run(self):
-        global stop_flag
-        global picture_file_name
-        self.message = '配置文件检索完毕,开始执行程序.'
-        self.textsignal.emit(self.message)
-        file = 'data/配置文件.xls'
-        # 打开文件
-        cmd_file = xlrd.open_workbook(filename=file)
-        # 通过索引获取sheet表格,默认只获取第一个表格.sheet[0][1]可以取出对应行列的数据
-        sheet1 = cmd_file.sheet_by_index(0)
-        # 从主线程传过来的循环次数参数key
-        key = key_num  # 字符串形式
-
-        # 判断路径图片文件夹是否存在
-        if sheet1.row_values(rowx=1)[0] == '':
-            picture_file_name = 0
-        else:
-            picture_file_name = sheet1.row_values(rowx=1)[0]
-        path = os.path.abspath('data')
-        fg = os.path.exists('{}/{}'.format(path, picture_file_name))
-        if fg: # 如果路径存在文件夹
-            if key == '0':  # 循环执行并计数
-                i = 1
-                self.message = '您选择了循环到死,程序已经开始执行.'
-                self.textsignal.emit(self.message)
-                while True:
-                    if stop_flag == 1:
-                        self.message = '当前为第{}次执行'.format(i)
-                        self.textsignal.emit(self.message)
-                        self.main_work(sheet1)
-                        i = i + 1
-                        time.sleep(1)
-                    else:
-                        self.message = '程序已退出！'
-                        self.textsignal.emit(self.message)
-
-                        self.message = '就绪.'
-                        self.textsignal2.emit(self.message)
-                        break
-            else:  # 执行到最大次数的分支
-                i = 1
-                self.message = '当前程序最大执行次数为{}次,程序已经开始执行.'.format(int(key))
-                self.textsignal.emit(self.message)
-                while int(key) >= i:
-                    if stop_flag == 1:
-                        self.message = '当前为第{}次执行'.format(i)
-                        self.textsignal.emit(self.message)
-                        self.main_work(sheet1)
-                        i = i + 1
-                        time.sleep(1)
-                    else:
-                        self.message = '程序已退出！'
-                        self.textsignal.emit(self.message)
-
-                        self.message = '就绪.'
-                        self.textsignal2.emit(self.message)
-                        break
-                else:
-                    self.message = '就绪.'
-                    self.textsignal2.emit(self.message)
-        else: # 如果路劲不存在文件夹
-            self.message = '路径图片文件夹不存在，请检查.'
+        try:
+            global picture_file_name
+            self.message = '配置文件检索完毕,开始执行程序.'
             self.textsignal.emit(self.message)
+            file = 'data/配置文件.xls'
+            # 打开文件
+            cmd_file = xlrd.open_workbook(filename=file)
+            # 通过索引获取sheet表格,默认只获取第一个表格.sheet[0][1]可以取出对应行列的数据
+            sheet1 = cmd_file.sheet_by_index(0)
+            # 从主线程传过来的循环次数参数key
+            key = key_num  # 字符串形式
+
+            # 判断路径图片文件夹是否存在
+            if sheet1.row_values(rowx=1)[0] == '':
+                picture_file_name = 0
+            else:
+                picture_file_name = sheet1.row_values(rowx=1)[0]
+            path = os.path.abspath('data')
+            fg = os.path.exists('{}/{}'.format(path, picture_file_name))
+            if fg: # 如果路径存在文件夹
+                if key == '0':  # 循环执行并计数
+                    i = 1
+                    self.message = '您选择了循环到死,程序已经开始执行.'
+                    self.textsignal.emit(self.message)
+                    while True:
+                        if not self.isInterruptionRequested():
+                            self.message = '当前为第{}次执行'.format(i)
+                            self.textsignal.emit(self.message)
+                            self.main_work(sheet1)
+                            i = i + 1
+                            time.sleep(1)
+                        else:
+                            self.message = '程序已退出！'
+                            self.textsignal.emit(self.message)
+
+                            self.message = '就绪.'
+                            self.textsignal2.emit(self.message)
+                            break
+                else:  # 执行到最大次数的分支
+                    i = 1
+                    self.message = '当前程序最大执行次数为{}次,程序已经开始执行.'.format(int(key))
+                    self.textsignal.emit(self.message)
+                    while int(key) >= i:
+                        if not self.isInterruptionRequested():
+                            self.message = '当前为第{}次执行'.format(i)
+                            self.textsignal.emit(self.message)
+                            self.main_work(sheet1)
+                            i = i + 1
+                            time.sleep(1)
+                        else:
+                            self.message = '程序已退出！'
+                            self.textsignal.emit(self.message)
+
+                            self.message = '就绪.'
+                            self.textsignal2.emit(self.message)
+                            break
+                    else:
+                        self.message = '就绪.'
+                        self.textsignal2.emit(self.message)
+            else: # 如果路劲不存在文件夹
+                self.message = '路径图片文件夹不存在，请检查.'
+                self.textsignal.emit(self.message)
+        finally:
+            pg.mouseUp()
+            pg.keyUp()
 
     # 主要工作函数
     def main_work(self, sheet1):
-        global stop_flag
         global picture_file_name
         max_rows = sheet1.nrows  # 读取表格的行数
         n = 2  # 从第二行第一列开始读取(排除表头)
@@ -263,7 +263,7 @@ class MyThread(QThread):
             self.message = '第{}行命令运行中...'.format(n+1)
             self.textsignal2.emit(self.message)
 
-            if stop_flag == 1:
+            if not self.isInterruptionRequested():
                 # 读取当前行的信息
                 tab_value = sheet1.row_values(rowx=n)
                 # 1.鼠标点击图片
@@ -307,7 +307,6 @@ class MyThread(QThread):
     '''
     # 1.定义鼠标点击图片
     def mouse_click(self, img, button_type, clicks_time, wait_time):
-        global stop_flag
         global picture_check_speed
         global confidence
 
@@ -316,7 +315,7 @@ class MyThread(QThread):
         else:
             wait_time = int(wait_time)
         t = 0
-        while stop_flag:
+        while not self.isInterruptionRequested():
             try:
                 location = pg.locateCenterOnScreen(img, confidence=confidence/100)
                 if location is not None:
@@ -324,10 +323,6 @@ class MyThread(QThread):
                     pg.click(clicks=clicks_time, interval=0.1, button=button_type)
                     time.sleep(0.5)
                     break
-                # else:  # 打印正在检测图片信息
-                #     name = img.split('/')
-                #     self.message = '...正在检测"{}"...'.format(name[-1])
-                #     self.textsignal.emit(self.message)
                 
             except Exception as e:
                 pass
@@ -343,7 +338,6 @@ class MyThread(QThread):
 
     # 2.定义鼠标点击坐标位置
     def mouse_position(self, position, button_type, clicks_time, wait_time):
-        global stop_flag
         if wait_time == '':
             wait_time = 0
         else:
@@ -352,11 +346,11 @@ class MyThread(QThread):
             self.textsignal.emit(self.message)
         # 休眠时间判断
         for i in range(wait_time):
-            if stop_flag == 1:
+            if not self.isInterruptionRequested():
                 time.sleep(1)
             else:
                 break
-        if stop_flag == 1:
+        if not self.isInterruptionRequested():
             position = position.split('/')
             pg.moveTo(int(position[0]), int(position[1]), duration=0.2)
             pg.click(clicks=clicks_time, interval=0.1, button=button_type)
@@ -380,7 +374,6 @@ class MyThread(QThread):
 
     # 4.鼠标长按（类型/时长）
     def mouse_long_push(self, button_type, push_time):
-        global stop_flag
         if push_time == '':
             push_time = 0
         else:
@@ -390,7 +383,7 @@ class MyThread(QThread):
         pg.mouseDown(button=button_type)
         # 判断长按时间
         for i in range(push_time):
-            if stop_flag == 1:
+            if not self.isInterruptionRequested():
                 time.sleep(1)
             else:
                 break
@@ -428,7 +421,7 @@ class MyThread(QThread):
                 self.textsignal.emit(self.message)
                 pg.keyDown(value)
                 for i in range(int(bt_time)):
-                    if stop_flag == 1:
+                    if not self.isInterruptionRequested():
                         time.sleep(1)
                     else:
                         break
@@ -492,14 +485,13 @@ class MyThread5(QThread):
     def run(self):
         self.message = '-复制坐标时请不要复制括号-'
         self.textsignal.emit(self.message)
-        while stop_flag == 1:
+        while not self.isInterruptionRequested():
             time.sleep(1)
             x, y = pg.position()
             self.message = '当前坐标为（{}/{}）'.format(x, y)
             self.textsignal.emit(self.message)
-        else:
-            self.message = '-停止检测坐标-'
-            self.textsignal.emit(self.message)
+        self.message = '-停止检测坐标-'
+        self.textsignal.emit(self.message)
 
 
 # 单步调试的子线程
