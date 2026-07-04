@@ -4,9 +4,10 @@
 
 import sys, os
 import time
+import datetime
 import pyperclip
 import xlrd
-from PySide6.QtCore import QThread, Signal, Qt
+from PySide6.QtCore import QThread, Signal, Qt, QDateTime
 from PySide6.QtWidgets import *
 from generated.ui_auto import Ui_AutoWindow
 import pyautogui as pg
@@ -58,11 +59,22 @@ class MyWindow1(QMainWindow):
         global key_num
         global confidence
 
-        confidence = self.confidence_are.value()
+        confidence = self.similarity_slider.value()
 
         key_num = self.input_are.text()
         self.now_state.setText('运行中')
         self.my_thread = MyThread()
+        self.my_thread.start_time = self.dtEdit_start.dateTime().toPython()
+        # 结束时间：勾选了才启用，且不能小于开始时间
+        if self.end_time_check.isChecked():
+            edt = self.dtEdit_end.dateTime()
+            if edt <= self.dtEdit_start.dateTime():
+                self.my_print('错误:结束时间必须大于开始时间!')
+                self.now_state.setText('就绪')
+                return
+            self.my_thread.end_time = edt.toPython()
+        else:
+            self.my_thread.end_time = None
         # 开启子线程,并将循环次数key传过去
         self.my_thread.start()
         # 链接子线程传回的信号与主线程打印函数绑定
@@ -110,6 +122,16 @@ class MyWindow1(QMainWindow):
             if btn.isChecked():
                 picture_check_speed = 3
 
+    # 图片相似度滑块改变的回调
+    def on_similarity_changed(self, val):
+        self.similarity_value.setText(str(val))
+        global confidence
+        confidence = val
+
+    # 结束时间勾选开关
+    def toggle_end_time(self, checked):
+        self.dtEdit_end.setEnabled(checked)
+
     # 设置软件运行的状态函数
     def set_now_state(self,text):
         self.now_state.setText(text)
@@ -120,62 +142,120 @@ class MyWindow1(QMainWindow):
         self.ui = Ui_AutoWindow()
         self.ui.setupUi(self)
         self.setWindowTitle('自动化工具箱v{}'.format(main.NAME))
+        self.resize(600, 490)
         # 初始化子线程的返回函数
         global version_value
         version_value = 0
 
-        # 标题栏按钮
-        self.mainWindow_bt = self.ui.pushButton_3  # 返回目录按钮
-        self.mainWindow_bt.clicked.connect(self.tow)  # 打开目录界面
-        self.mainWindow_bt.clicked.connect(self.close)  # 关闭原来窗口
+        # ── 顶部工具栏 ──
+        self.mainWindow_bt = self.ui.pushButton_3  # 返回目录
+        self.mainWindow_bt.setGeometry(30, 10, 93, 28)
+        self.mainWindow_bt.clicked.connect(self.tow)
+        self.mainWindow_bt.clicked.connect(self.close)
 
-        # 图片检测时间选择按钮
+        self.ui.label_4.setGeometry(280, 10, 101, 16)  # 图片检测速度：
         self.select_bt = self.ui.radioButton  # 快
+        self.select_bt.setGeometry(390, 10, 41, 19)
         self.select_bt2 = self.ui.radioButton_2  # 标准
+        self.select_bt2.setGeometry(440, 10, 61, 19)
         self.select_bt3 = self.ui.radioButton_3  # 慢
-        # 设置默认选中按钮
+        self.select_bt3.setGeometry(510, 10, 41, 20)
         self.select_bt2.setChecked(True)
-        # 给检测时间按钮绑定槽函数
         self.select_bt.toggled.connect(lambda: self.select_action(self.select_bt))
         self.select_bt2.toggled.connect(lambda: self.select_action(self.select_bt2))
         self.select_bt3.toggled.connect(lambda: self.select_action(self.select_bt3))
 
-        # 当前表格显示区域/子线程
+        # ── 日志区域 ──
+        self.text_are = self.ui.textBrowser
+        self.text_are.setGeometry(25, 60, 281, 325)
+        self.text_are.setText('---自动化操作---')
+
+        # ── 右侧控制面板（x≥330） ──
+        # 第1行：当前表格
+        self.ui.label_3.setGeometry(330, 38, 61, 16)  # 当前表格
         self.now_cmd_are = self.ui.lineEdit_3
+        self.now_cmd_are.setGeometry(395, 36, 81, 21)
         self.my_thread7 = MyThread7()
         self.my_thread7.start()
         self.my_thread7.textsignal.connect(self.my_cmd_name)
-        # 图片相似度显示区域
-        self.confidence_are = self.ui.spinBox
 
-        # 配置文件按钮/槽函数
-        self.peizhi_bt = self.ui.pushButton_2
-        self.peizhi_bt.clicked.connect(self.peizhi_action)
-        # 开始按钮/槽函数
-        self.start_bt = self.ui.pushButton
-        self.start_bt.clicked.connect(self.start_action)
-        # 文本显示窗口(显示打印信息)/没有槽函数
-        self.text_are = self.ui.textBrowser
-        self.text_are.setText('---自动化操作---')
-        # 输入窗口(输入循环次数)/没有槽函数
+        # 第2行：开始时间
+        self.label_start_time = QLabel('开始时间：', self)
+        self.label_start_time.setGeometry(330, 65, 61, 16)
+        self.dtEdit_start = QDateTimeEdit(self)
+        self.dtEdit_start.setGeometry(395, 63, 190, 22)
+        self.dtEdit_start.setDisplayFormat('yyyy:MM:dd:HH:mm:ss')
+        self.dtEdit_start.setDateTime(QDateTime.currentDateTime())
+
+        # 第3行：结束时间 + 启用勾选
+        self.label_end_time = QLabel('结束时间：', self)
+        self.label_end_time.setGeometry(330, 93, 61, 16)
+        self.dtEdit_end = QDateTimeEdit(self)
+        self.dtEdit_end.setGeometry(395, 91, 175, 22)
+        self.dtEdit_end.setDisplayFormat('yyyy:MM:dd:HH:mm:ss')
+        self.dtEdit_end.setDateTime(QDateTime.currentDateTime())
+        self.end_time_check = QCheckBox(self)
+        self.end_time_check.setGeometry(575, 91, 22, 22)
+        self.end_time_check.setChecked(False)
+        self.end_time_check.toggled.connect(self.toggle_end_time)
+        self.dtEdit_end.setEnabled(False)
+
+        # 第4行：循环次数
+        self.ui.label.setGeometry(340, 125, 72, 15)  # 循环次数：
         self.input_are = self.ui.lineEdit
-        # 图片文件夹按钮/槽函数
-        self.picture_bt = self.ui.pushButton_4
-        self.picture_bt.clicked.connect(self.picture_action)
-        # 设置结束按钮/槽函数
+        self.input_are.setGeometry(416, 125, 91, 21)
+
+        # 第5行：图片相似度（滑块）
+        self.ui.label_7.setGeometry(330, 152, 81, 16)  # 图片相似度：
+        self.similarity_value = QLineEdit(self)
+        self.similarity_value.setGeometry(415, 150, 35, 22)
+        self.similarity_value.setReadOnly(True)
+        self.similarity_value.setText('75')
+        self.similarity_value.setAlignment(Qt.AlignCenter)
+        self.similarity_slider = QSlider(Qt.Horizontal, self)
+        self.similarity_slider.setGeometry(460, 150, 130, 22)
+        self.similarity_slider.setRange(0, 100)
+        self.similarity_slider.setValue(75)
+        self.similarity_slider.setSingleStep(1)
+        self.similarity_slider.valueChanged.connect(self.on_similarity_changed)
+
+        # 按钮第1行：开始 / 结束
+        self.start_bt = self.ui.pushButton
+        self.start_bt.setGeometry(330, 190, 93, 51)
+        self.start_bt.clicked.connect(self.start_action)
         self.stop_bt = self.ui.pushButton_6
+        self.stop_bt.setGeometry(450, 190, 93, 51)
         self.stop_bt.clicked.connect(self.stop_action)
-        # 鼠标定位按钮/槽函数
+
+        # 按钮第2行：图片文件夹 / 配置文件
+        self.picture_bt = self.ui.pushButton_4
+        self.picture_bt.setGeometry(330, 260, 93, 51)
+        self.picture_bt.clicked.connect(self.picture_action)
+        self.peizhi_bt = self.ui.pushButton_2
+        self.peizhi_bt.setGeometry(450, 260, 93, 51)
+        self.peizhi_bt.clicked.connect(self.peizhi_action)
+
+        # 按钮第3行：鼠标定位 / 单步调试
         self.mouse_position_bt = self.ui.pushButton_7
+        self.mouse_position_bt.setGeometry(330, 330, 93, 51)
         self.mouse_position_bt.clicked.connect(self.mouse_position_action)
-        # 单步调试按钮/槽函数
-        self.step_are = self.ui.lineEdit_2
         self.step_bt = self.ui.pushButton_5
+        self.step_bt.setGeometry(450, 330, 93, 51)
         self.step_bt.clicked.connect(self.step_action)
 
-        # 当前运行状态显示区域
+        # 第6行：指令行数
+        self.ui.label_2.setGeometry(340, 400, 72, 15)  # 指令行数：
+        self.step_are = self.ui.lineEdit_2
+        self.step_are.setGeometry(450, 400, 91, 21)
+
+        # ── 底部状态 ──
+        self.ui.label_5.setGeometry(30, 445, 71, 16)  # 当前状态：
         self.now_state = self.ui.label_6
+        self.now_state.setGeometry(110, 445, 191, 16)
         self.now_state.setText('就绪')
+        # 隐藏旧的浮动控件
+        self.ui.spinBox.hide()
+        self.ui.label_8.hide()
 
     # 切换目录
     def tow(self):
@@ -189,10 +269,23 @@ class MyThread(QThread):
     # 设定传递文本信息的变量
     textsignal = Signal(str)  # 文本显示区域信息
     textsignal2 = Signal(str)  # 当前运行状态信息
+    # 指令分发字典
+    CMD_DISPATCH = {
+        '图片': 'do_mouse_click',
+        '坐标': 'do_mouse_position',
+        '拖拽': 'do_mouse_drag',
+        '长按': 'do_mouse_long_push',
+        '滚动': 'do_mouse_scroll',
+        '键盘': 'do_key_board',
+    }
 
     def __init__(self):
         super().__init__()
         self.jump_map = {}
+        self.label_map = {}
+        self.call_stack = []
+        self.start_time = None
+        self.end_time = None
 
     @staticmethod
     def build_jump_map(sheet1):
@@ -213,6 +306,20 @@ class MyThread(QThread):
                     item = stack.pop()
                     jump_map[item['if_row']] = (item['else_row'], n)
         return jump_map
+
+    @staticmethod
+    def build_label_map(sheet1):
+        """预扫描表格,建立LABEL的名称到行号映射"""
+        label_map = {}
+        max_rows = sheet1.nrows
+        for n in range(max_rows):
+            tab_value = sheet1.row_values(rowx=n)
+            instr = tab_value[1] if len(tab_value) > 1 else ''
+            if instr == 'LABEL':
+                name = tab_value[2] if len(tab_value) > 2 else ''
+                if name:
+                    label_map[name] = n
+        return label_map
 
     def wait_for_image_condition(self, img, timeout):
         """等待图片出现在屏幕上,超时返回False。返回True表示找到图片"""
@@ -243,6 +350,20 @@ class MyThread(QThread):
             self.textsignal.emit(self.message)
             self.message = '运行中.'
             self.textsignal2.emit(self.message)
+            # 定时等待：如果 start_time 在未来，则等待
+            if self.start_time and self.start_time > datetime.datetime.now():
+                self.message = '定时等待中,开始时间为: {}'.format(self.start_time.strftime('%Y:%m:%d %H:%M:%S'))
+                self.textsignal.emit(self.message)
+                while self.start_time > datetime.datetime.now():
+                    if self.isInterruptionRequested():
+                        self.message = '定时任务已取消.'
+                        self.textsignal.emit(self.message)
+                        self.message = '就绪.'
+                        self.textsignal2.emit(self.message)
+                        return
+                    time.sleep(1)
+                self.message = '定时时间到,开始执行.'
+                self.textsignal.emit(self.message)
             file = 'data/配置文件.xls'
             # 打开文件
             cmd_file = xlrd.open_workbook(filename=file)
@@ -261,12 +382,20 @@ class MyThread(QThread):
             if fg: # 如果路径存在文件夹
                 # 构建跳转映射表
                 self.jump_map = self.build_jump_map(sheet1)
+                self.label_map = self.build_label_map(sheet1)
                 if key == '0':  # 循环执行并计数
                     i = 1
                     self.message = '您选择了循环到死,程序已经开始执行.'
                     self.textsignal.emit(self.message)
                     while True:
                         if not self.isInterruptionRequested():
+                            # 检查结束时间
+                            if self.end_time and datetime.datetime.now() >= self.end_time:
+                                self.message = '结束时间已到,停止执行.'
+                                self.textsignal.emit(self.message)
+                                self.message = '就绪.'
+                                self.textsignal2.emit(self.message)
+                                break
                             self.message = '当前为第{}次执行'.format(i)
                             self.textsignal.emit(self.message)
                             self.main_work(sheet1)
@@ -285,6 +414,13 @@ class MyThread(QThread):
                     self.textsignal.emit(self.message)
                     while int(key) >= i:
                         if not self.isInterruptionRequested():
+                            # 检查结束时间
+                            if self.end_time and datetime.datetime.now() >= self.end_time:
+                                self.message = '结束时间已到,停止执行.'
+                                self.textsignal.emit(self.message)
+                                self.message = '就绪.'
+                                self.textsignal2.emit(self.message)
+                                break
                             self.message = '当前为第{}次执行'.format(i)
                             self.textsignal.emit(self.message)
                             self.main_work(sheet1)
@@ -318,6 +454,11 @@ class MyThread(QThread):
         n = 2  # 从第二行第一列开始读取(排除表头)
         while n <= max_rows - 1:
             if not self.isInterruptionRequested():
+                # 检查结束时间
+                if self.end_time and datetime.datetime.now() >= self.end_time:
+                    self.message = '结束时间已到,停止执行.'
+                    self.textsignal.emit(self.message)
+                    break
                 tab_value = sheet1.row_values(rowx=n)
                 instr = tab_value[1] if len(tab_value) > 1 else ''
                 self.message = '第{}行命令运行中...'.format(n+1)
@@ -361,28 +502,38 @@ class MyThread(QThread):
                 elif instr == 'ENDIF':
                     n += 1
                     continue
+                # 处理 CALL/RETURN/LABEL 子流程指令
+                elif instr == 'CALL':
+                    sub_name = tab_value[2] if len(tab_value) > 2 else ''
+                    if sub_name in self.label_map:
+                        self.call_stack.append(n + 1)
+                        n = self.label_map[sub_name] + 1
+                        self.message = '调用子流程: {}...'.format(sub_name)
+                        self.textsignal.emit(self.message)
+                    else:
+                        self.message = '子流程"{}"未找到!'.format(sub_name)
+                        self.textsignal.emit(self.message)
+                        n += 1
+                    continue
+                elif instr == 'RETURN':
+                    if self.call_stack:
+                        n = self.call_stack.pop()
+                        self.message = '子流程返回.'
+                        self.textsignal.emit(self.message)
+                    else:
+                        self.message = '无调用栈, 忽略RETURN.'
+                        self.textsignal.emit(self.message)
+                        n += 1
+                    continue
+                elif instr == 'LABEL':
+                    n += 1
+                    continue
 
-                # 原有指令类型处理
-                # 1.鼠标点击图片
-                if tab_value[1] == '图片':
-                    img_dir = 'data/{}/{}'.format(picture_file_name,tab_value[2])  # 拿到具体图片名称地址
-                    self.mouse_click(img_dir, self.mouse_type[int(tab_value[3])], int(tab_value[4]), tab_value[5])
-                # 2.鼠标点击坐标位置
-                elif tab_value[1] == '坐标':
-                    self.mouse_position(tab_value[2], self.mouse_type[int(tab_value[3])], int(tab_value[4]),
-                                        tab_value[5])
-                # 3.鼠标拖拽操作
-                elif tab_value[1] == '拖拽':
-                    self.mouse_drag(tab_value[2], tab_value[4])
-                # 4.
-                elif tab_value[1] == '长按':
-                    self.mouse_long_push(self.mouse_type[int(tab_value[3])], tab_value[5])
-                # 5.鼠标滚动操作
-                elif tab_value[1] == '滚动':
-                    self.mouse_scroll(tab_value[6])
-                # 6.键盘操作
-                elif tab_value[1] == '键盘':
-                    self.key_board(int(tab_value[7]), tab_value[8], tab_value[9])
+                # 原有指令类型处理（分发字典）
+                handler_name = self.CMD_DISPATCH.get(instr)
+                if handler_name:
+                    handler = getattr(self, handler_name)
+                    handler(tab_value)
                 else:  # 出现错误时跳出执行
                     self.message = '第{}行判断标志错误,请修正!'.format(n + 1)
                     self.textsignal.emit(self.message)
@@ -395,6 +546,26 @@ class MyThread(QThread):
         else:
             self.message = '---命令执行完毕!---'
             self.textsignal.emit(self.message)
+
+    # 指令分发包装方法
+    def do_mouse_click(self, tab_value):
+        img_dir = 'data/{}/{}'.format(picture_file_name, tab_value[2])
+        self.mouse_click(img_dir, self.mouse_type[int(tab_value[3])], int(tab_value[4]), tab_value[5])
+
+    def do_mouse_position(self, tab_value):
+        self.mouse_position(tab_value[2], self.mouse_type[int(tab_value[3])], int(tab_value[4]), tab_value[5])
+
+    def do_mouse_drag(self, tab_value):
+        self.mouse_drag(tab_value[2], tab_value[4])
+
+    def do_mouse_long_push(self, tab_value):
+        self.mouse_long_push(self.mouse_type[int(tab_value[3])], tab_value[5])
+
+    def do_mouse_scroll(self, tab_value):
+        self.mouse_scroll(tab_value[6])
+
+    def do_key_board(self, tab_value):
+        self.key_board(int(tab_value[7]), tab_value[8], tab_value[9])
 
     '''
     键鼠操作
@@ -636,6 +807,7 @@ class MyThread6(MyThread):
         fg = os.path.exists('{}/{}'.format(path, picture_file_name))
         if fg: # 如果路径存在文件夹
             self.jump_map = self.build_jump_map(sheet1)
+            self.label_map = self.build_label_map(sheet1)
             self.main_work(sheet1)
             self.message = '.单步调试结束.'
             self.textsignal.emit(self.message)
