@@ -5,6 +5,7 @@
 *.pyd
 __pycache__/
 .venv/
+.cortexkit/
 
 # 分发的包
 *.egg

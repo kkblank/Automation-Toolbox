@@ -16,7 +16,7 @@ import main1, main2, main4, main5
 """全局变量"""
 version_value = 0  # 验证是否联网变量
 start_flag = False  # 是否能够运行程序标志
-NAME = "5.0"  # 当前版本名称
+NAME = "6.0"  # 当前版本名称
 
 
 class UpdateCheckThread(QThread):
