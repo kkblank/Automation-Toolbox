@@ -61,6 +61,7 @@ class MyWindow1(QMainWindow):
         confidence = self.confidence_are.value()
 
         key_num = self.input_are.text()
+        self.now_state.setText('运行中')
         self.my_thread = MyThread()
         # 开启子线程,并将循环次数key传过去
         self.my_thread.start()
@@ -74,13 +75,16 @@ class MyWindow1(QMainWindow):
             self.my_thread.requestInterruption()
         if hasattr(self, 'my_thread5') and self.my_thread5.isRunning():
             self.my_thread5.requestInterruption()
+        self.now_state.setText('就绪')
 
     # 点击鼠标定位按钮的动作
     def mouse_position_action(self):
+        self.now_state.setText('鼠标坐标定位中')
         self.my_thread5 = MyThread5()
         # 开启子线程,并将循环次数key传过去
         self.my_thread5.start()
         self.my_thread5.textsignal.connect(self.my_print)
+        self.my_thread5.textsignal2.connect(self.set_now_state)
 
     # 图片检测速度选项
     def step_action(self):
@@ -91,6 +95,7 @@ class MyWindow1(QMainWindow):
         self.my_thread6.start()
         self.my_thread6.textsignal.connect(self.my_print)
         self.my_thread6.textsignal2.connect(self.set_now_state)
+        self.now_state.setText('单步调试中')
 
     # 选择图片检测速度的快慢
     def select_action(self, btn):
@@ -170,12 +175,12 @@ class MyWindow1(QMainWindow):
 
         # 当前运行状态显示区域
         self.now_state = self.ui.label_6
+        self.now_state.setText('就绪')
 
     # 切换目录
     def tow(self):
         self.w1 = main.MyWindow()
         self.w1.show()
-
 
 # 用于自动化操作的子线程
 class MyThread(QThread):
@@ -187,12 +192,57 @@ class MyThread(QThread):
 
     def __init__(self):
         super().__init__()
+        self.jump_map = {}
+
+    @staticmethod
+    def build_jump_map(sheet1):
+        """预扫描表格,建立IF/ELSE/ENDIF的跳转映射表"""
+        stack = []
+        jump_map = {}
+        max_rows = sheet1.nrows
+        for n in range(max_rows):
+            tab_value = sheet1.row_values(rowx=n)
+            instr = tab_value[1] if len(tab_value) > 1 else ''
+            if instr == 'IF':
+                stack.append({'if_row': n, 'else_row': None})
+            elif instr == 'ELSE':
+                if stack:
+                    stack[-1]['else_row'] = n
+            elif instr == 'ENDIF':
+                if stack:
+                    item = stack.pop()
+                    jump_map[item['if_row']] = (item['else_row'], n)
+        return jump_map
+
+    def wait_for_image_condition(self, img, timeout):
+        """等待图片出现在屏幕上,超时返回False。返回True表示找到图片"""
+        global picture_check_speed
+        global confidence
+        if timeout == '' or timeout == 0:
+            timeout = 3
+        timeout = float(timeout)
+        t = 0
+        while t < timeout:
+            if not self.isInterruptionRequested():
+                try:
+                    location = pg.locateCenterOnScreen(img, confidence=confidence/100)
+                    if location is not None:
+                        return True
+                except Exception:
+                    pass
+                time.sleep(picture_check_speed)
+                t += picture_check_speed
+            else:
+                return False
+        return False
 
     def run(self):
         try:
             global picture_file_name
             self.message = '配置文件检索完毕,开始执行程序.'
             self.textsignal.emit(self.message)
+            self.message = '运行中.'
+            self.textsignal2.emit(self.message)
             file = 'data/配置文件.xls'
             # 打开文件
             cmd_file = xlrd.open_workbook(filename=file)
@@ -209,6 +259,8 @@ class MyThread(QThread):
             path = os.path.abspath('data')
             fg = os.path.exists('{}/{}'.format(path, picture_file_name))
             if fg: # 如果路径存在文件夹
+                # 构建跳转映射表
+                self.jump_map = self.build_jump_map(sheet1)
                 if key == '0':  # 循环执行并计数
                     i = 1
                     self.message = '您选择了循环到死,程序已经开始执行.'
@@ -251,9 +303,13 @@ class MyThread(QThread):
             else: # 如果路劲不存在文件夹
                 self.message = '路径图片文件夹不存在，请检查.'
                 self.textsignal.emit(self.message)
+                self.message = '就绪.'
+                self.textsignal2.emit(self.message)
         finally:
             pg.mouseUp()
             pg.keyUp()
+            self.message = '就绪.'
+            self.textsignal2.emit(self.message)
 
     # 主要工作函数
     def main_work(self, sheet1):
@@ -261,13 +317,52 @@ class MyThread(QThread):
         max_rows = sheet1.nrows  # 读取表格的行数
         n = 2  # 从第二行第一列开始读取(排除表头)
         while n <= max_rows - 1:
-            # 打印当前运行状态
-            self.message = '第{}行命令运行中...'.format(n+1)
-            self.textsignal2.emit(self.message)
-
             if not self.isInterruptionRequested():
-                # 读取当前行的信息
                 tab_value = sheet1.row_values(rowx=n)
+                instr = tab_value[1] if len(tab_value) > 1 else ''
+                self.message = '第{}行命令运行中...'.format(n+1)
+                self.textsignal2.emit(self.message)
+                # 处理 IF/ELSE/ENDIF 分支指令
+                if instr == 'IF':
+                    img = tab_value[2] if len(tab_value) > 2 else ''
+                    timeout = tab_value[5] if len(tab_value) > 5 else 0
+                    if img == '':
+                        img = picture_file_name
+                    else:
+                        img = 'data/{}/{}'.format(picture_file_name, img)
+                    self.message = '正在检测条件: {} (超时{}秒)...'.format(img, timeout)
+                    self.textsignal.emit(self.message)
+                    found = self.wait_for_image_condition(img, timeout)
+                    if found:
+                        self.message = '条件满足, 执行IF分支.'
+                        self.textsignal.emit(self.message)
+                        n += 1
+                    else:
+                        self.message = '条件不满足, 跳过IF分支.'
+                        self.textsignal.emit(self.message)
+                        if n in self.jump_map:
+                            else_row, endif_row = self.jump_map[n]
+                            if else_row is not None:
+                                n = else_row
+                            else:
+                                n = endif_row
+                        else:
+                            n += 1
+                    continue
+                elif instr == 'ELSE':
+                    # ELSE 只在 IF 条件满足时到达, 需要跳过 ELSE 块
+                    if n in self.jump_map:
+                        _, endif_row = self.jump_map[n]
+                        n = endif_row + 1
+                        continue
+                    else:
+                        n += 1
+                        continue
+                elif instr == 'ENDIF':
+                    n += 1
+                    continue
+
+                # 原有指令类型处理
                 # 1.鼠标点击图片
                 if tab_value[1] == '图片':
                     img_dir = 'data/{}/{}'.format(picture_file_name,tab_value[2])  # 拿到具体图片名称地址
@@ -489,6 +584,7 @@ class MyThread3(QThread):
 # 鼠标坐标定位的子线程
 class MyThread5(QThread):
     textsignal = Signal(str)
+    textsignal2 = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -496,6 +592,8 @@ class MyThread5(QThread):
     def run(self):
         self.message = '-复制坐标时请不要复制括号-'
         self.textsignal.emit(self.message)
+        self.message = '鼠标坐标定位中'
+        self.textsignal2.emit(self.message)
         while not self.isInterruptionRequested():
             time.sleep(1)
             x, y = pg.position()
@@ -503,6 +601,8 @@ class MyThread5(QThread):
             self.textsignal.emit(self.message)
         self.message = '-停止检测坐标-'
         self.textsignal.emit(self.message)
+        self.message = '就绪.'
+        self.textsignal2.emit(self.message)
 
 
 # 单步调试的子线程
@@ -535,6 +635,7 @@ class MyThread6(MyThread):
         path = os.path.abspath('data')
         fg = os.path.exists('{}/{}'.format(path, picture_file_name))
         if fg: # 如果路径存在文件夹
+            self.jump_map = self.build_jump_map(sheet1)
             self.main_work(sheet1)
             self.message = '.单步调试结束.'
             self.textsignal.emit(self.message)
@@ -545,7 +646,7 @@ class MyThread6(MyThread):
             self.message = '不存在对应的图片文件夹，请检查.'
             self.textsignal.emit(self.message)
 
-            self.message = '.就绪.'
+            self.message = '就绪.'
             self.textsignal2.emit(self.message)
 
     def main_work(self, sheet1):
